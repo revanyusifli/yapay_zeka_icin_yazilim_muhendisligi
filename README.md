@@ -2,6 +2,7 @@
 **Yazılım Mühendisliği Dersi Proje Raporu**
 
 * **GitHub Deposu:** [https://github.com/revanyusifli/yapay_zeka_icin_yazilim_muhendisligi](https://github.com/revanyusifli/yapay_zeka_icin_yazilim_muhendisligi)
+*  **Canlı Web Sitesi (GitHub Pages):** [https://revanyusifli.github.io/yapay_zeka_icin_yazilim_muhendisligi/](https://revanyusifli.github.io/yapay_zeka_icin_yazilim_muhendisligi/)
 * **Geliştirici:** Ravan Yusifli
 * **Ders:** Yapay Zeka İçin Yazılım Mühendisliği
 
