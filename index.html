@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Ortak Karar Forumu v2.5</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f4f6f4;--sf:#ffffff;--ink:#14231b;--mu:#53645b;--ac:#0b6650;
+      --no:#bd215b;--ln:#d2ded6;--hl:#e4f0ea;--warn:#c88300;--card-shadow:0 2px 8px rgba(0,0,0,0.04);
+      box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
+    }
+    @media(prefers-color-scheme:dark){
+      :root:not([data-theme="light"]){
+        --bg:#0e1713;--sf:#15221c;--ink:#e4eee8;--mu:#92a49b;--ac:#41c7a1;
+        --no:#f26896;--ln:#26372f;--hl:#193026;--warn:#e6a117;--card-shadow:0 2px 8px rgba(0,0,0,0.25)
+      }
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Source Sans 3",system-ui,sans-serif}
+    h1,h2,h3,h4{font-family:"Bricolage Grotesque",Georgia,sans-serif;line-height:1.2;margin:.2em 0 .4em}
+    h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-.02em}
+    h2{font-size:1.3rem;font-weight:700}h3{font-size:1.05rem;font-weight:600}
+    main{max-width:960px;margin:0 auto;padding:16px}
+    .chain{display:flex;gap:3px;flex-wrap:wrap;margin:10px 0 6px}
+    .chain i{width:13px;height:13px;border-radius:3px;display:block;transition:transform .1s}
+    .chain i:hover{transform:scale(1.4)}
+    nav{display:flex;gap:6px;overflow-x:auto;padding:8px 0;border-bottom:2px solid var(--ln);margin-bottom:16px}
+    nav button{white-space:nowrap;font-weight:600;font-size:.92rem}
+    button,select,input,textarea{font:inherit;color:inherit}
+    button{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:7px 13px;cursor:pointer;transition:all .15s}
+    button:hover{border-color:var(--ac);background:var(--hl)}
+    button.on,button.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+    button.pri:hover{filter:brightness(1.1)}
+    button.no{border-color:var(--no);color:var(--no)}button.no:hover{background:var(--no);color:#fff}
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+    input,select,textarea{width:100%;background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:9px;margin:4px 0 10px}
+    label{font-size:.88rem;color:var(--mu);font-weight:600}
+    .card{background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:var(--card-shadow)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}
+    .stat b{font:800 1.7rem "Bricolage Grotesque",sans-serif;display:block;color:var(--ac)}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .mu{color:var(--mu);font-size:.88rem}
+    .tag{font-size:.78rem;font-weight:600;border:1px solid var(--ln);border-radius:20px;padding:2px 9px;background:var(--hl);color:var(--ink)}
+    .tag-ai{background:#2b1b4a;color:#d8b4fe;border-color:#6b21a8}
+    .tag-exp{background:#1e3a5f;color:#93c5fd;border-color:#2563eb}
+    .tag-ok{background:#064e3b;color:#a7f3d0;border-color:#059669}
+    .tag-no{background:#4c0519;color:#fecdd3;border-color:#e11d48}
+    .bar{height:10px;border-radius:5px;background:var(--ln);overflow:hidden;display:flex;margin:8px 0}
+    .bar span{display:block;height:100%}
+    .msg{border-left:4px solid var(--ac);background:var(--hl);padding:10px 14px;margin-bottom:14px;border-radius:0 8px 8px 0;font-weight:600}
+    .part{border-left:3px solid var(--ac);padding:6px 12px;margin:10px 0;background:rgba(0,0,0,0.015);border-radius:0 6px 6px 0}
+    .part.h{opacity:.45;border-color:var(--no);text-decoration:line-through}
+    .ind{margin-left:calc(var(--d)*18px)}
+    code{font-size:.8rem;word-break:break-all;background:rgba(0,0,0,0.05);padding:2px 4px;border-radius:4px}
+    .scroll{overflow-x:auto}
+  </style>
+</head>
+<body>
+<main id="app"></main>
+
+<script>
+const $=s=>document.querySelector(s), esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const KEY='forum_v25_seed', SESS='forum_v25_user', uid=()=>Math.random().toString(36).slice(2,9);
+let S, me=null, tab='acc', open=null, msg=[], showH=false;
+
+const TABS={acc:'👤 Hesap & Giriş',panel:'📊 Deshpord',topics:'📁 Konular',props:'🗳️ Oylamalar',deleg:'🔗 Delegasyon Grafı',ledger:'📜 Dağıtık Defter',rules:'⚖️ Kurallar'};
+const RULES=['Hiçbir kayıt gerçekten silinmez; yalnızca gizlenir ve defterde kalır.','Sistemdeki her değişiklik oylamayla yapılır.','Eşit oy hakkı: 1 üye = 1 oy. Bilirkişi/YZ = 10 puan.','Azınlık koruması: Tek bir güç odağı toplam oyun %20’sini aşamaz.','Silme, gizleme ve kapatma 2/3 nitelikli çoğunluk ister. Diğerleri 1/2 basit çoğunluk. Katılım barajı %25’tir.','Tüm işlemler SHA-256 zinciriyle dağıtık deftere yazılır ve doğruluk denetimine açıktır.'];
+const REG=['m.1 Değişmez kurallara aykırı öneri (fiziksel silme, oylamayı iptal vb.) sistemden reddedilir.','m.2 Hakaret ve argo içeren dil kullanılamaz.','m.3 Başlık 5–80, konu metni 20–600, ek metin 10–600 karakter olmalıdır.','m.4 Kalabalık kontrolü: Kullanıcı başına en fazla 3 aktif öneri limiti.','m.5 Jaccard Benzerlik Denetimi: Mevcut konulara %60+ benzer yeni başlık açılamaz.','m.6 Yetki Alanı Denetimi: Yalnızca ilgili alanın üyeleri veya üst kapsama dahil olanlar oy verebilir.'];
+const THR={create:.5,edit:.5,delPart:.66,delete:.66,close:.66,field:.5};
+
+async function sha(t){
+  try{
+    const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));
+    return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+  }catch(e){
+    let h=0;for(const c of t)h=(h*31+c.charCodeAt(0))|0;return'x'+(h>>>0).toString(16);
+  }
+}
+
+function save(){
+  try{
+    localStorage.setItem(KEY,JSON.stringify(S));
+    if(me)localStorage.setItem(SESS,me.id);else localStorage.removeItem(SESS);
+  }catch(e){}
+}
+
+async function log(a,d){
+  const p=S.ledger.length?S.ledger[S.ledger.length-1].h:'0';
+  const e={n:S.ledger.length,t:new Date().toISOString(),a,d,p};
+  e.h=await sha(p+e.t+a+JSON.stringify(d));
+  S.ledger.push(e);
+}
+
+const anc=id=>{const r=[];let n=S.onto.find(o=>o.id==id);while(n){r.push(n.id);n=S.onto.find(o=>o.id==n.p)}return r};
+const inSub=(node,root)=>anc(node).includes(root), on=id=>S.onto.find(o=>o.id==id)?.n||'?';
+const elig=(u,t)=>{
+  if(!t.field)return!u.exp;
+  if(u.exp)return inSub(t.field,u.exp)||inSub(u.exp,t.field);
+  return u.int.some(i=>inSub(i,t.field));
+};
+const byId=id=>S.users.find(u=>u.id==id), tp=id=>S.topics.find(t=>t.id==id);
+const vis=t=>showH||(!t.hidden&&(!t.parent||vis(tp(t.parent))));
+const ptopic=p=>p.type=='create'?{field:p.pl.field}:p.type=='field'?{field:p.pl.parent||null}:tp(p.pl.tid);
+
+function tally(p){
+  const t=ptopic(p), el=S.users.filter(u=>elig(u,t)), total=el.reduce((s,u)=>s+(u.exp?10:1),0)||1;
+  const cap=Math.max(10,total*.20), bal={};
+  const add=(k,v,w)=>{bal[k]=bal[k]||{v,w:0};bal[k].w+=w};
+
+  el.forEach(u=>{
+    const v=p.votes[u.id];
+    if(v) add(u.id,v,u.exp?10:1);
+    else{
+      const d=S.deleg.find(g=>g.from==u.id&&inSub(t.field,g.field));
+      if(d&&p.votes[d.to]) add(d.to,p.votes[d.to],1);
+    }
+  });
+
+  let y=0,n=0;
+  Object.values(bal).forEach(b=>{
+    const w=Math.min(b.w,cap);
+    b.v=='e'?y+=w:n+=w;
+  });
+  const P=y+n;
+  return{y,n,P,total,cap,q:P>=.25*total,ok:P>0&&y/P>THR[p.type]};
+}
+
+const W=t=>new Set(t.toLowerCase().split(/[^a-zçğıöşü0-9]+/).filter(x=>x.length>2));
+const sim=(a,b)=>{
+  a=W(a);b=W(b);
+  const i=[...a].filter(x=>b.has(x)).length;
+  return i/((a.size+b.size-i)||1);
+};
+
+function check(type,pl){
+  const e=[], txt=(pl.title||'')+' '+(pl.body||'');
+  if(!me)return['Önce oturum açmalısınız (Hesap sekmesi).'];
+  if(type=='create'&&(pl.title.length<5||pl.title.length>80))e.push('m.3 Başlık 5–80 karakter olmalıdır.');
+  if(type=='field'&&(pl.title.length<2||pl.title.length>30))e.push('m.3 Alan adı 2–30 karakter olmalıdır.');
+  if(type=='field'&&S.onto.some(o=>o.n.toLowerCase()==pl.title.toLowerCase()))e.push('m.5 Bu alan zaten ontolojide tanımlı.');
+  if((type=='create'&&pl.body.length<20)||(type=='edit'&&pl.body.length<10))e.push('m.3 Gerekçe metni çok kısa.');
+  if((pl.body||'').length>600)e.push('m.3 Metin 600 karakter sınırını aşıyor.');
+  if(/aptal|salak|gerizekal|ahmak|hırsız/i.test(txt))e.push('m.2 Yönetmelik İhlali: Hakaret içeren dil kullanılamaz.');
+  if(/kalıcı\s*sil|fiziksel\s*sil|kuralları?\s*(kaldır|değiştir)|oylamayı?\s*kaldır/i.test(txt))e.push('m.1 Anayasal İhlal: Değişmez kurallara aykırı öneri yapılamaz.');
+  if(S.props.filter(p=>p.by==me.id&&p.st=='açık').length>=3)e.push('m.4 Kalabalık Sınırı: Kullanıcı başına en fazla 3 açık öneri bulunabilir.');
+  if(type=='create'){
+    const d=S.topics.find(t=>!t.hidden&&sim(t.title,pl.title)>=.6);
+    if(d)e.push('m.5 Benzer konu tespit edildi: «'+d.title+'». Lütfen mevcut konuya ek karar önerisi sunun.');
+  }
+  const f=pl.field||tp(pl.tid)?.field;
+  if(f&&!elig(me,{field:f}))e.push('m.6 Yetki İhlali: Bu alanın üyesi değilsiniz.');
+  if(pl.tid&&tp(pl.tid).status=='kapalı')e.push('Bu konu kapatılmış olduğu için değişiklik teklif edilemez.');
+  return e;
+}
+
+async function runAiAgentEvaluator(p){
+  const t=ptopic(p);
+  if(inSub(t.field,'fb')||inSub(t.field,'spor')){
+    const ai=S.users.find(u=>u.id=='e2');
+    if(ai&&!p.votes[ai.id]){
+      const txt=((p.pl.title||'')+' '+(p.pl.body||'')).toLowerCase();
+      const voteVal=txt.includes('şiddet')||txt.includes('iptal')?'h':'e';
+      p.votes[ai.id]=voteVal;
+      await log('oy',{p:p.id,by:ai.nick,v:voteVal,note:'Claude Futbol-YZ otonom değerlendirmesi'});
+      return true;
+    }
+  }
+  return false;
+}
+
+async function propose(type,pl){
+  const e=check(type,pl);
+  if(e.length){msg=e;return render();}
+  const p={id:uid(),type,pl,by:me.id,votes:{},st:'açık',t:Date.now()};
+  S.props.push(p);
+  await log('öneri:'+type,{p:p.id,by:me.nick,tid:pl.tid||null});
+  const aiDid=await runAiAgentEvaluator(p);
+  save();
+  msg=['Öneri oylamaya sunuldu.'+(aiDid?' 🤖 Claude Futbol-YZ teklifi anında inceledi ve 10 puanlık oy kullandı.':'')];
+  tab='props';render();
+}
+
+const desc=p=>({
+  field:'Alan Teklifi: «'+esc(p.pl.title)+'»',
+  create:'Yeni Konu: «'+esc(p.pl.title)+'»',
+  edit:'«'+esc(tp(p.pl.tid)?.title)+'» için Karar Metni Değişikliği',
+  delPart:'«'+esc(tp(p.pl.tid)?.title)+'» Karar Metninden Parça Gizleme',
+  delete:'«'+esc(tp(p.pl.tid)?.title)+'» Konusunun Arşivlenmesi (Gizleme)',
+  close:'«'+esc(tp(p.pl.tid)?.title)+'» Konusunun Müzakereye Kapatılması'
+})[p.type];
+
+async function vote(id,v){
+  const p=S.props.find(x=>x.id==id);
+  if(!me||p.st!='açık'||!elig(me,ptopic(p)))return;
+  p.votes[me.id]=v;
+  await log('oy',{p:id,by:me.nick,v});
+  save();render();
+}
+
+async function fin(id,silent){
+  const p=S.props.find(x=>x.id==id),r=tally(p);
+  if(!r.q){
+    if(!silent){msg=['Yetersiz Katılım: Katılım barajı (%25) aşılmadığı için oylama açık kalır.'];render();}
+    return r;
+  }
+  p.st=r.ok?'kabul':'ret';const pl=p.pl;
+  if(r.ok){
+    if(p.type=='field')S.onto.push({id:uid(),n:pl.title,p:pl.parent||null});
+    if(p.type=='create')S.topics.push({id:uid(),title:pl.title,parent:pl.parent||null,field:pl.field,status:'açık',hidden:false,by:p.by,parts:[{id:uid(),t:pl.body,by:p.by,hidden:false}]});
+    const t=tp(pl.tid);
+    if(p.type=='edit')t.parts.push({id:uid(),t:pl.body,by:p.by,hidden:false});
+    if(p.type=='delPart')t.parts.find(x=>x.id==pl.part).hidden=true;
+    if(p.type=='delete')t.hidden=true;
+    if(p.type=='close')t.status='kapalı';
+  }
+  await log('sonuç',{p:id,st:p.st,y:r.y,n:r.n,quorumMet:r.q});
+  save();
+  if(!silent){msg=['Oylama Sonuçlandı: '+(r.ok?'KABUL EDİLDİ':'REDDEDİLDİ')];render();}
+  return r;
+}
+
+async function reg(){
+  const g=i=>$('#'+i).value.trim(), int=[...document.querySelectorAll('.ii:checked')].map(x=>x.value);
+  if(g('rd')&&!int.includes('diger'))int.push('diger');
+  const e=[];
+  ['rn','rs','rb','ra','rk'].forEach(i=>{if(!g(i))e.push('Tüm kimlik ve adres alanları zorunludur.')});
+  if($('#rp').value.length<8)e.push('Şifre en az 8 karakter olmalıdır.');
+  if(S.users.some(u=>u.nick.toLowerCase()==g('rk').toLowerCase()))e.push('Bu takma ad sistemde zaten kayıtlı.');
+  if(int.length<3)e.push('Yazılım kuralı: En az 3 farklı ilgi alanı seçmelisiniz.');
+  if(e.length){msg=[...new Set(e)];return render();}
+
+  const salt=uid(), u={id:uid(),name:g('rn'),sur:g('rs'),birth:g('rb'),addr:g('ra'),nick:g('rk'),salt,ph:await sha(salt+$('#rp').value),int,other:g('rd')};
+  S.users.push(u);me=u;
+  await log('kayıt',{nick:u.nick,areas:int});
+  save();
+  msg=['Kaydınız başarıyla tamamlandı. Hoş geldiniz @'+u.nick];
+  tab='topics';render();
+}
+
+async function login(){
+  const u=S.users.find(x=>x.nick==$('#ln').value.trim());
+  if(!u||!u.ph||u.ph!=await sha(u.salt+$('#lp').value)){
+    msg=['Hatalı takma ad veya şifre.'];return render();
+  }
+  me=u;msg=['Giriş başarılı: @'+u.nick];tab='topics';save();render();
+}
+
+function loginAs(id){
+  me=byId(id);msg=['Aktif oturum: @'+me.nick];save();render();
+}
+
+function logout(){
+  me=null;save();msg=['Oturum kapatıldı.'];tab='acc';render();
+}
+
+async function assign(){
+  if(!me)return;
+  const f=$('#df').value, to=$('#dt').value;
+  S.deleg=S.deleg.filter(g=>!(g.from==me.id&&g.field==f));
+  S.deleg.push({from:me.id,to,field:f});
+  await log('delegasyon',{from:me.nick,to:byId(to).nick,field:f});
+  save();msg=['Oyunuz devredildi.'];render();
+}
+
+async function newTopicFlex(){
+  let parentId=$('#np').value||null;
+  const customParent=$('#ncp').value.trim();
+  const f=$('#nf').value;
+
+  if(customParent){
+    let existing=S.topics.find(t=>t.title.toLowerCase()==customParent.toLowerCase());
+    if(!existing){
+      existing={id:uid(),title:customParent,parent:null,field:f,status:'açık',hidden:false,by:me.id,parts:[{id:uid(),t:'Kullanıcı tarafından oluşturulan üst kategori.',by:me.id,hidden:false}]};
+      S.topics.push(existing);
+      await log('üst-konu:otomatik',{id:existing.id,title:existing.title});
+    }
+    parentId=existing.id;
+  }
+  await propose('create',{title:$('#nt').value.trim(),body:$('#nb').value.trim(),parent:parentId,field:f});
+}
+
+async function domino(){
+  const U=['nijat','osman','revan','maqa'].map(n=>S.users.find(u=>u.nick==n)), prev=me;
+  me=U[0];
+  const pl={title:'Geleneksel Bahar Dönemi Domino Turnuvası',body:'Öğrenciler arası kampüs açık alan domino ve akıl oyunları etkinliği düzenlenmesi teklifi.',parent:'t5',field:'oyun'};
+  const p={id:uid(),type:'create',pl,by:me.id,votes:{},st:'açık',t:Date.now()};
+  S.props.push(p);
+  await log('öneri:create',{p:p.id,by:me.nick,scenario:'domino'});
+  const out=[];
+  for(const u of U){
+    const v=Math.random()<.3?'h':'e';
+    p.votes[u.id]=v;
+    await log('oy',{p:p.id,by:u.nick,v});
+    out.push(u.nick+': '+(v=='e'?'evet':'hayır'));
+  }
+  await fin(p.id,true);
+  me=prev;save();
+  msg=['Domino Test Senaryosu Koşuldu: '+out.join(' · '),'Sonuç: '+(p.st=='kabul'?'KABUL EDİLDİ (Konulara eklendi)':'RET EDİLDİ')];
+  tab='props';render();
+}
+
+async function verify(){
+  let p='0',ok=true;
+  for(const e of S.ledger){
+    if(e.p!=p||e.h!=await sha(p+e.t+e.a+JSON.stringify(e.d))){ok=false;break;}
+    p=e.h;
+  }
+  msg=[ok?'✅ Dağıtık Defter Doğrulandı: '+S.ledger.length+' blok incelendi, kriptografik zincir BÜTÜN ve SAĞLAM.':'❌ UYARI: Defter bütünlüğü bozulmuş! Blok özetleri uyuşmuyor.'];
+  render();
+}
+
+const opts=(a,sel)=>a.map(([v,l])=>`<option value="${esc(v)}"${v==sel?' selected':''}>${esc(l)}</option>`).join('');
+const ontoOpts=sel=>opts(S.onto.map(o=>[o.id,'— '.repeat(anc(o.id).length-1)+o.n]),sel);
+
+function bar(r){
+  const t=r.y+r.n||1;
+  return`<div class="bar" role="img" aria-label="Evet ${r.y}, Hayır ${r.n}"><span style="width:${r.y/t*100}%;background:var(--ac)"></span><span style="width:${r.n/t*100}%;background:var(--no)"></span></div>`;
+}
+
+function tree(parent,d){
+  return S.topics.filter(t=>(t.parent||null)==parent&&vis(t)).map(t=>{
+    const n=S.props.filter(p=>p.st=='açık'&&p.pl.tid==t.id).length;
+    return`<div class="card ind" style="--d:${d}">
+      <div class="row">
+        <button onclick="open='${t.id}';render()"><b>${esc(t.title)}</b></button>
+        <span class="tag">${esc(on(t.field))}</span>
+        ${t.status=='kapalı'?'<span class="tag tag-no">kapalı</span>':''}
+        ${t.hidden?'<span class="tag">arşivlendi</span>':''}
+        ${n?`<span class="tag tag-ok">${n} Aktif Oylama</span>`:''}
+      </div>
+    </div>`+tree(t.id,d+1);
+  }).join('');
+}
+
+function detail(t){
+  const can=me&&elig(me,t)&&t.status=='açık';
+  return`
+    <button onclick="open=null;render()">‹ Konu Listesine Dön</button>
+    <div class="card" style="margin-top:10px">
+      <h2>${esc(t.title)}</h2>
+      <div class="row">
+        <span class="tag">${esc(on(t.field))}</span>
+        <span class="tag">${t.status}</span>
+        <span class="mu">Kapsamdaki Seçmen Sayısı: ${S.users.filter(u=>elig(u,t)).length} kişi</span>
+      </div>
+    </div>
+    <h3>Resmi Karar Metni & Ekler</h3>
+    ${t.parts.filter(p=>showH||!p.hidden).map(p=>`
+      <div class="part ${p.hidden?'h':''}">
+        ${esc(p.t)}
+        <div class="mu">Yazar: @${esc(byId(p.by)?.nick\vert{}\vert{}'anonim')}${p.hidden?'· (Oylamayla Gizlendi)':''}</div>
+        ${can&&!p.hidden?`<button style="margin-top:4px" onclick="propose('delPart',{tid:'${t.id}',part:'${p.id}'})">Bu Metin Parçasının Gizlenmesini Öner</button>`:''}
+      </div>
+    `).join('')}
+    ${can?`
+      <div class="card">
+        <h3>Karar Metnine Ek Madde Öner</h3>
+        <label for="eb">Ek Karar Metni</label>
+        <textarea id="eb" rows="3" placeholder="Yönetmelik ve anayasal ilkeler doğrultusunda önerinizi yazın..."></textarea>
+        <div class="row">
+          <button class="pri" onclick="propose('edit',{tid:'${t.id}',body:$('#eb').value.trim()})">Eklemeyi Oylamaya Sun</button>
+          <button class="no" onclick="propose('close',{tid:'${t.id}'})">Konuyu Kapatmayı Oyla</button>
+          <button class="no" onclick="propose('delete',{tid:'${t.id}'})">Konuyu Arşivlemeyi (Gizlemeyi) Oyla</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Bu Başlığa Bağlı Yeni Bir Alt Konu Aç</h3>
+        <label for="st">Alt Konu Başlığı</label><input id="st" placeholder="Örn: Dersliklerde Klima Kullanım Kuralları">
+        <label for="sf">Kapsam Alanı</label><select id="sf">${ontoOpts(t.field)}</select>
+        <label for="sb">Başlangıç Gerekçesi</label><textarea id="sb" rows="2"></textarea>
+        <button class="pri" onclick="propose('create',{title:$('#st').value.trim(),body:$('#sb').value.trim(),parent:'${t.id}',field:$('#sf').value})">Alt Konuyu Oylamaya Sun</button>
+      </div>
+    `:`<p class="mu">Bu konuda teklif sunabilmek için konunun alanına (${esc(on(t.field))}) üye olmalı ve oturum açmalısınız.</p>`}
+  `;
+}
+
+const V={
+  acc(){
+    return`
+      <div class="card" style="border-left:4px solid var(--ac)">
+        <h2>Hızlı Demo Girişi (Tek Tıkla Oturum Aç)</h2>
+        <p class="mu">Bilirkişiler (10 Puan), Otonom Claude YZ veya standart kullanıcıların gözünden sistemi doğrudan test edebilirsiniz:</p>
+        <div class="row" style="margin-bottom:10px">
+          <span class="mu" style="width:100%"><b>Bilirkişiler ve Yapay Zekâ:</b></span>
+          <button class="on" onclick="loginAs('e2')">🤖 Claude (Futbol-YZ)</button>
+          <button class="on" onclick="loginAs('e1')">🎓 Prof. Ayşe (Spor Uzmanı)</button>
+          <button class="on" onclick="loginAs('e3')">💻 Dr. Tolga (Teknoloji Uzmanı)</button>
+        </div>
+        <div class="row" style="margin-bottom:12px">
+          <span class="mu" style="width:100%"><b>Demo Kullanıcılar (3+ Kapsamlı İlgi Alanı):</b></span>
+          ${S.users.filter(u=>u.demo).map(u=>`<button class="${me&&me.id==u.id?'pri':''}" onclick="loginAs('${u.id}')">@${esc(u.nick)}</button>`).join('')}
+        </div>
+        <div class="row">
+          <button class="pri" onclick="domino()">🎲 Domino Test Senaryosunu Koş (Rapor Kanıtı)</button>
+          <button onclick="try{localStorage.removeItem(KEY);localStorage.removeItem(SESS)}catch(e){};location.reload()">🔄 Verileri Sıfırla</button>
+        </div>
+      </div>
+      ${me?`
+        <div class="card">
+          <h2>Aktif Oturum: @${esc(me.nick)} ${me.exp?'<span class="tag tag-exp">Bilirkişi</span>':''} ${me.ai?'<span class="tag tag-ai">Otonom YZ</span>':''}</h2>
+          <p class="mu">Ad Soyad: ${esc(me.name+' '+me.sur)} · Oy Katsayısı: <b>${me.exp?10:1} Puan</b></p>
+          <p class="mu">İlgi Alanları: ${me.int.map(on).join(' · ')\vert{}\vert{}'—'}${me.other?' · (Özel: '+esc(me.other)+')':''}</p>
+          <button class="no" onclick="logout()">Oturumu Kapat</button>
+        </div>
+      `:`
+        <div class="grid">
+          <div class="card">
+            <h2>Giriş Yap</h2>
+            <label for="ln">Takma Ad</label><input id="ln" placeholder="ör: demo">
+            <label for="lp">Şifre</label><input id="lp" type="password" placeholder="demo12345">
+            <button class="pri" onclick="login()">Oturum Aç</button>
+          </div>
+          <div class="card">
+            <h2>Yeni Seçmen Kaydı</h2>
+            <div class="grid">
+              <div><label for="rn">Ad</label><input id="rn" placeholder="Ahmet"></div>
+              <div><label for="rs">Soyad</label><input id="rs" placeholder="Yılmaz"></div>
+            </div>
+            <div class="grid">
+              <div><label for="rb">Doğum Tarihi</label><input id="rb" type="date" value="2001-05-15"></div>
+              <div><label for="rk">Takma Ad</label><input id="rk" placeholder="ahmet_y"></div>
+            </div>
+            <label for="ra">Adres / Fakülte</label><input id="ra" placeholder="Mühendislik Fakültesi D Blok">
+            <label for="rp">Şifre (Min 8 Karakter)</label><input id="rp" type="password" value="demo12345">
+            <label>İlgi Alanları (En az 3 adet seçiniz - SE Kuralı)</label>
+            <div class="row" style="margin:4px 0 10px">
+              ${S.onto.map(o=>`<label style="cursor:pointer"><input class="ii" style="width:auto" type="checkbox" value="${o.id}"> ${esc(o.n)}</label>`).join('')}
+            </div>
+            <label for="rd">Listede Olmayan Ek İlgi Alanı</label><input id="rd" placeholder="Robotik, Astronomi vb.">
+            <button class="pri" onclick="reg()">Kaydı Tamamla (SHA-256 Tuzlu Özet)</button>
+          </div>
+        </div>
+      `}
+    `;
+  },
+
+  panel(){
+    const f=S.props.filter(p=>p.st!='açık'), a=f.filter(p=>p.st=='kabul').length;
+    const hot=[...S.topics].filter(vis).sort((x,y)=>S.props.filter(p=>p.pl.tid==y.id).length-S.props.filter(p=>p.pl.tid==x.id).length).slice(0,5);
+    return`
+      <div class="grid">
+        <div class="card stat"><b>${S.users.length}</b>Toplam Seçmen</div>
+        <div class="card stat"><b>${S.topics.filter(vis).length}</b>Aktif Konu</div>
+        <div class="card stat"><b>${S.props.filter(p=>p.st=='açık').length}</b>Açık Oylama</div>
+        <div class="card stat"><b>${f.length?Math.round(a/f.length*100)+'%':'—'}</b>Konsensüs Oranı</div>
+        <div class="card stat"><b>${S.ledger.length}</b>Defter Bloğu</div>
+      </div>
+      <h2>En Çok Müzakere Edilen Konular</h2>
+      ${hot.map(t=>`
+        <div class="card row" style="justify-content:space-between">
+          <div><b>${esc(t.title)}</b> <span class="tag">${esc(on(t.field))}</span></div>
+          <button onclick="tab='topics';open='${t.id}';render()">Görüntüle</button>
+        </div>
+      `).join('')}
+      <h2>Oy Kullanabileceğiniz Bekleyen Teklifler</h2>
+      ${me?(S.props.filter(p=>p.st=='açık'&&elig(me,ptopic(p))&&!p.votes[me.id]).map(p=>`
+        <div class="card row" style="justify-content:space-between">
+          <div>${desc(p)} <span class="tag">${esc(on(ptopic(p).field))}</span></div>
+          <button class="pri" onclick="tab='props';render()">Oyla</button>
+        </div>
+      `).join('')||'<p class="mu">Bekleyen oylamanız bulunmamaktadır.</p>'):'<p class="mu">Kapsamınızdaki oylamaları görmek için oturum açın.</p>'}
+    `;
+  },
+
+  topics(){
+    if(open&&tp(open))return detail(tp(open));
+    return`
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <h2>Ontolojik Konu Ağacı</h2>
+        <label><input type="checkbox" style="width:auto" ${showH?'checked':''} onchange="showH=this.checked;render()"> Arşivlenen/Gizlenenleri Göster</label>
+      </div>
+      ${tree(null,0)}
+      <div class="card">
+        <h3>Yeni Konu / Alt Konu Başlat</h3>
+        <label for="nt">Konu Başlığı</label><input id="nt" placeholder="Gündeme getirmek istediğiniz kararın başlığı...">
+        <div class="grid">
+          <div>
+            <label for="np">Var Olan Üst Konu</label>
+            <select id="np"><option value="">(Ana Konu Olarak Başlat)</option>${opts(S.topics.filter(vis).map(t=>[t.id,t.title]))}</select>
+          </div>
+          <div>
+            <label for="ncp">Veya Kendin Yeni Üst Konu Belirt</label>
+            <input id="ncp" placeholder="ör: Ulaşım ve Seferler">
+          </div>
+        </div>
+        <label for="nf">Yetki Alanı (Ontoloji Kapsamı)</label><select id="nf">${ontoOpts()}</select>
+        <label for="nb">Başlangıç Karar Metni ve Gerekçesi</label><textarea id="nb" rows="3" placeholder="En az 20 karakterlik açıklama..."></textarea>
+        <button class="pri" onclick="newTopicFlex()">Teklifi Oylamaya Sun</button>
+      </div>
+    `;
+  },
+
+  props(){
+    return`
+      <h2>Yürürlükteki Oylamalar ve Karar Süreçleri</h2>
+      ${S.props.slice().reverse().map(p=>{
+        const r=tally(p), t=ptopic(p), can=me&&p.st=='açık'&&elig(me,t), my=me&&p.votes[me.id];
+        return`
+          <div class="card">
+            <div class="row" style="justify-content:space-between">
+              <b>${desc(p)}</b>
+              <div>
+                <span class="tag ${p.st=='kabul'?'tag-ok':p.st=='ret'?'tag-no':''}">${p.st.toUpperCase()}</span>
+                <span class="tag">Gereken: ${p.type.match(/del|close/)?'2/3 Nitelikli':'1/2 Basit'}</span>
+              </div>
+            </div>
+            ${bar(r)}
+            <div class="mu row" style="gap:14px;margin-top:6px">
+              <span>👍 Kabul: <b>${r.y}</b></span>
+              <span>👎 Ret: <b>${r.n}</b></span>
+              <span>Katılım: <b>${r.P}/${r.total}</b> (${r.q?'%25 Barajı Aşıldı':'Baraj Altında'})</span>
+              <span>Öneren: <b>@${esc(byId(p.by)?.nick||'anonim')}</b></span>
+            </div>
+            ${p.st=='açık'?`
+              <div class="row" style="margin-top:10px">
+                ${can?`
+                  <button class="pri" onclick="vote('${p.id}','e')">👍 Kabul Oyu Ver</button>
+                  <button class="no" onclick="vote('${p.id}','h')">👎 Ret Oyu Ver</button>
+                `:'<span class="mu">Bu alan için oy yetkiniz bulunmuyor.</span>'}
+                ${my?`<span class="tag tag-ok">Kullandığınız Oy: ${my=='e'?'KABUL':'RET'}</span>`:''}
+                ${can?`<button style="margin-left:auto" onclick="fin('${p.id}')">⏱️ Süreyi Bitir ve Karara Bağla</button>`:''}
+              </div>
+            `:''}
+          </div>
+        `;
+      }).join('')||'<p class="mu">Henüz bir oylama teklifi bulunmuyor.</p>'}
+    `;
+  },
+
+  deleg(){
+    const ex=S.users.filter(u=>u.exp||u.ai);
+    return`
+      <h2>Likit Demokrasi & Delegasyon Grafı</h2>
+      <p class="mu">Bilginizin sınırlı olduğu alanlardaki oy gücünüzü güvenilir bir bilirkişiye veya otonom Yapay Zekâya devredebilirsiniz.</p>
+      ${me?`
+        <div class="card">
+          <h3>Oyunuzu Bir Bilirkişiye / YZ'ye Devredin</h3>
+          <div class="grid">
+            <div><label for="df">Kapsam Alanı</label><select id="df">${ontoOpts()}</select></div>
+            <div><label for="dt">Bilirkişi / Yapay Zekâ</label><select id="dt">${opts(ex.map(u=>[u.id,u.name+' '+u.sur+(u.ai?' (Otonom YZ)':' (Bilirkişi)')+' — Kapsam: '+on(u.exp)]))}</select></div>
+          </div>
+          <button class="pri" onclick="assign()">Delegasyon Bağlantısını Kur</button>
+        </div>
+      `:'<p class="mu">Delegasyon atamak için lütfen oturum açın.</p>'}
+      <div class="card">
+        <h3>Aktif Graf Kenarları (Seçmen ➔ Temsilci)</h3>
+        ${S.deleg.map((g,i)=>`
+          <div class="row" style="justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--ln)">
+            <div>
+              👤 <b>@${esc(byId(g.from)?.nick)}</b> ➔ ${byId(g.to)?.ai?'🤖':'🎓'} <b>@${esc(byId(g.to)?.nick)}</b>
+              <span class="tag">${esc(on(g.field))}</span>
+            </div>
+            ${me&&g.from==me.id?`<button onclick="S.deleg.splice(${i},1);save();render()">Bağlantıyı Geri Çek</button>`:''}
+          </div>
+        `).join('')||'<span class="mu">Kayıtlı delegasyon kenarı bulunmuyor.</span>'}
+      </div>
+      <div class="card">
+        <h3>Tanımlı Bilirkişi ve YZ Temsilcileri</h3>
+        ${ex.map(u=>`
+          <div class="row" style="padding:6px 0">
+            ${u.ai?'🤖':'🎓'} <b>${esc(u.name+' '+u.sur)}</b> (@${esc(u.nick)})
+            <span class="tag ${u.ai?'tag-ai':'tag-exp'}">${esc(on(u.exp))}</span>
+            <span class="mu">· Taban Güç: 10 Puan + ${S.deleg.filter(g=>g.to==u.id).length} Temsili Oy</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  },
+
+  ledger(){
+    return`
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <h2>Dağıtık Defter ve Kriptografik Denetim</h2>
+        <button class="pri" onclick="verify()">🔍 Zincir Bütünlüğünü Doğrula (Audit)</button>
+      </div>
+      <p class="mu">Her karar, öneri ve oy işlemi SHA-256 özetiyle birbirine zincirlenmiştir (Append-only). Gerçek dünyada çoklu düğümlerde (nodes) dağıtık mutabakatla saklanır.</p>
+      <div class="scroll">
+        ${S.ledger.slice(-30).reverse().map(e=>`
+          <div class="card" style="font-family:monospace;font-size:.85rem">
+            <div class="row" style="justify-content:space-between">
+              <b>Blok #${e.n} [${esc(e.a)}]</b>
+              <span class="mu">${esc(e.t)}</span>
+            </div>
+            <div style="margin:4px 0">Veri: <code>${esc(JSON.stringify(e.d))}</code></div>
+            <div>Önceki Hash: <code>${e.p.slice(0,20)}...</code></div>
+            <div>Blok Hash: <code style="color:var(--ac)">${e.h}</code></div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  },
+
+  rules(){
+    return`
+      <h2>Değişmez Anayasal İlkeler</h2>
+      <ol>${RULES.map(r=>`<li style="margin:6px 0"><b>${r}</b></li>`).join('')}</ol>
+      <h2>Otomatik Yönetmelik Denetimi</h2>
+      <ul>${REG.map(r=>`<li style="margin:6px 0">${r}</li>`).join('')}</ul>
+      <h2>Ontoloji Hiyerarşisi</h2>
+      <div class="card">${S.onto.map(o=>`<div class="ind" style="--d:${anc(o.id).length-1}">📁 <b>${esc(o.n)}</b> <code class="mu">(id: ${o.id})</code></div>`).join('')}</div>
+    `;
+  }
+};
+
+function render(){
+  const ch=S.ledger.slice(-32).map(e=>`<i style="background:hsl(${parseInt(e.h.slice(0,3),16)%360} 50% 45%)" title="#${e.n} ${e.a}"></i>`).join('');
+  $('#app').innerHTML=`
+    <h1>Ortak Karar Forumu <span style="font-size:.9rem;color:var(--mu);font-weight:400">v2.5 SE</span></h1>
+    <div class="mu">${me?'Oturum Açık: @'+esc(me.nick):'Misafir Kullanıcı'} · Her Değişiklik Oylanır, Hiçbir Şey Silinmez</div>
+    <div class="chain" aria-hidden="true">${ch}</div>
+    <nav>${Object.entries(TABS).map(([k,v])=>`<button class="${tab==k?'on':''}" onclick="tab='${k}';msg=[];open=null;render()">${v}</button>`).join('')}</nav>
+    ${msg.length?`<div class="msg" role="status">${msg.map(esc).join('<br>')}</div>`:''}
+    ${V[tab]()}
+  `;
+}
+
+async function init(){
+  let s=null;
+  try{s=JSON.parse(localStorage.getItem(KEY));}catch(e){}
+
+  if(!s){
+    const salt='demo_salt', H=await sha(salt+'demo12345');
+    const mk=(id,n,s,nick,int,x)=>({id,name:n,sur:s,birth:'2001-01-01',addr:'Ankara Üniv. Gölbaşı Yerleşkesi',nick,salt,ph:H,demo:1,int,...x});
+
+    s={
+      onto:[
+        ['edu','Eğitim',0],['uni','Üniversite','edu'],['cls','Sınıf','uni'],
+        ['spor','Spor',0],['fb','Futbol','spor'],['bask','Basketbol','spor'],
+        ['tek','Teknoloji',0],['yaz','Yazılım','tek'],['ai_field','Yapay Zekâ','tek'],
+        ['egl','Eğlence',0],['oyun','Oyunlar','egl'],['sinema','Sinema & Kültür','egl'],
+        ['ulasim','Ulaşım & Kampüs',0],['diger','Diğer Alanlar',0]
+      ].map(a=>({id:a[0],n:a[1],p:a[2]||null})),
+
+      users:[
+        mk('u1','Revan','Yusifli','revan',['uni','cls','tek','yaz','ai_field','oyun']),
+        mk('u2','Mert','Aydın','mert',['spor','fb','bask','egl','oyun']),
+        mk('u3','Zeynep','Kaya','zeynep',['edu','uni','yaz','tek','sinema']),
+        mk('u4','Can','Demir','can',['uni','cls','ulasim','oyun']),
+        mk('u5','Deniz','Yıldız','deniz',['spor','fb','ulasim','egl','sinema']),
+        mk('n1','Nijat','Aliyev','nijat',['egl','oyun','sinema','fb','spor']),
+        mk('n2','Osman','Muradov','osman',['egl','oyun','yaz','tek','uni']),
+        mk('n4','Maqa','Mammadov','maqa',['egl','oyun','spor','ulasim','cls']),
+        mk('e1','Prof. Ayşe','Kaya','ayse',['spor','fb','bask'],{exp:'spor',demo:0}),
+        mk('e2','Claude','Futbol-YZ','claude-futbol',['spor','fb'],{exp:'fb',ai:true,demo:0}),
+        mk('e3','Dr. Tolga','Işık','tolga',['tek','yaz','ai_field'],{exp:'tek',demo:0})
+      ],
+      topics:[],props:[],deleg:[],ledger:[]
+    };
+
+    const T=(id,title,parent,field,body,by='u1')=>s.topics.push({id,title,parent,field,status:'açık',hidden:false,by,parts:[{id:id+'p',t:body,by,hidden:false}]});
+    T('t1','Üniversite Genel Karar Prensipleri',null,'uni','Üniversite genelinde tüm öğrencileri ve idari süreçleri bağlayan ana müzakere başlığı.');
+    T('t2','Kampüs İçine Uçak / Helikopter İndirilmesi','t1','uni','Üniversite ana yerleşkesine hava aracı indirilmesi tüm kampüs paydaşlarını ilgilendirir. Yalnızca sınıf değil üniversite yetkisindedir.');
+    T('t3','Ders Sırasında Akıllı Cihaz Kullanımı','t2','cls','Dersliklerde odaklanmayı artırmak amacıyla akıllı telefonların sessiz konuma alınması önerisi.');
+    T('t4','Futbolda VAR ve Hakem İtirazları',null,'fb','Kampüs halı saha liginde video hakem sisteminin kullanım standartları.');
+    T('t5','Kampüs Sosyal Etkinlikleri ve Turnuvalar',null,'egl','Öğrenciler arası eğlence ve yarışma tekliflerinin toplandığı ana başlık.');
+    T('t6','Merkez Kütüphane 7/24 Çalışma Düzeni','t1','uni','Vize ve final dönemlerinde ana çalışma salonlarının kesintisiz açık kalması.');
+
+    s.deleg=[
+      {from:'u2',to:'e2',field:'fb'},
+      {from:'n1',to:'e2',field:'fb'},
+      {from:'u3',to:'e3',field:'yaz'},
+      {from:'n2',to:'e3',field:'tek'}
+    ];
+
+    S=s;
+    await log('sistem:kurulum',{bilgi:'ConsensuSphere Ortak Karar Motoru başlatıldı'});
+
+    // 1. KABUL EDİLEN OYLAMA (Futbol & Claude YZ Katılımı)
+    const p1={id:'pr_seed_1',type:'edit',pl:{tid:'t4',body:'Halı saha müsabakalarında VAR incelemesi takım kaptanlarının talebiyle ve en fazla 60 saniye ile sınırlandırılmıştır.'},by:'u2',votes:{u2:'e',u5:'e',n1:'e',e2:'e'},st:'açık',t:Date.now()-7200000};
+    s.props.push(p1);
+    await log('öneri:edit',{p:p1.id,by:'mert',tid:'t4'});
+    await log('oy',{p:p1.id,by:'claude-futbol',v:'e',ağırlık:10});
+    await fin(p1.id,true);
+
+    // 2. KABUL EDİLEN OYLAMA (Domino Turnuvası)
+    const p2={id:'pr_seed_2',type:'create',pl:{title:'Geleneksel Kampüs Domino ve Akıl Oyunları Turnuvası',body:'Bahar şenlikleri kapsamında öğrenci kulüpleri arası domino şampiyonası düzenlenmesi kararı.',parent:'t5',field:'oyun'},by:'n1',votes:{n1:'e',n2:'e',u1:'e',u4:'e',maqa:'h'},st:'açık',t:Date.now()-3600000};
+    s.props.push(p2);
+    await log('öneri:create',{p:p2.id,by:'nijat'});
+    await fin(p2.id,true);
+
+    // 3. REDDEDİLEN OYLAMA (2/3 Barajına Takılan Öneri)
+    const p3={id:'pr_seed_3',type:'close',pl:{tid:'t3'},by:'u4',votes:{u4:'e',u1:'h',u3:'h'},st:'açık',t:Date.now()-1800000};
+    s.props.push(p3);
+    await log('öneri:close',{p:p3.id,by:'can',tid:'t3'});
+    await fin(p3.id,true);
+
+    // 4. AKTİF VE OYLANABİLİR OYLAMA (Kütüphane Önerisi)
+    const p4={id:'pr_seed_4',type:'edit',pl:{tid:'t6',body:'Sınav dönemlerinde gece 01:00 ile 05:00 arasında kütüphane önünden saat başı ücretsiz ring seferi konsun.'},by:'u3',votes:{u3:'e',u1:'e'},st:'açık',t:Date.now()-900000};
+    s.props.push(p4);
+    await log('öneri:edit',{p:p4.id,by:'zeynep',tid:'t6'});
+
+    // 5. YENİ ALAN TEKLİFİ (Aktif)
+    const p5={id:'pr_seed_5',type:'field',pl:{title:'Robotik & İHA Sistemleri',parent:'tek'},by:'u1',votes:{u1:'e'},st:'açık',t:Date.now()-300000};
+    s.props.push(p5);
+    await log('öneri:field',{p:p5.id,by:'revan'});
+
+    save();
+  }
+
+  S=s;
+  const savedUser=localStorage.getItem(SESS);
+  me=savedUser?byId(savedUser):S.users[0];
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
